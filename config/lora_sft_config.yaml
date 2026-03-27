@@ -1,0 +1,63 @@
+# =============================================================================
+# LLaMA-Factory LoRA SFT 训练配置文件
+# 使用方式：
+#   cd ~/LLaMA-Factory
+#   llamafactory-cli train /path/to/this/config/lora_sft_config.yaml
+# =============================================================================
+
+### 模型配置
+model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct   # 基座模型（首次运行自动下载）
+# 国内镜像加速：先执行 export HF_ENDPOINT=https://hf-mirror.com
+
+### 训练阶段
+stage: sft                   # 监督微调（SFT），可选: pt / rm / ppo / dpo
+do_train: true
+
+### 数据集配置
+dataset: log_sft_demo        # 对应 data/dataset_info.json 中的 key
+template: qwen               # 对话模板，需与基座模型匹配
+cutoff_len: 2048             # 最大序列长度（显存不足时调小）
+max_samples: null            # null = 使用全部数据；调试时可设为 100
+overwrite_cache: true
+
+### 微调方法
+finetuning_type: lora        # lora / full / freeze
+lora_rank: 16                # LoRA 秩；8=轻量快速，64=效果更好但慢
+lora_alpha: 32               # lora_alpha 通常为 lora_rank 的 2 倍
+lora_dropout: 0.1
+lora_target: all             # 应用 LoRA 的层；all = 所有线性层
+
+### 量化配置（QLoRA，4-bit 量化可将显存需求降低约 60%）
+quantization_bit: 4          # 4 或 8；注释掉此行则使用 bf16 全精度
+quantization_method: bitsandbytes
+
+### 训练超参数
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 8   # 等效全局 batch size = 2 * 8 = 16
+learning_rate: 5.0e-5
+num_train_epochs: 3.0            # 训练轮数；max_steps 优先级更高
+# max_steps: 500                 # 固定步数训练（调试时推荐 100 步快速验证）
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+### 精度配置
+fp16: false
+bf16: true                   # A100/H100 推荐 bf16；RTX 系列推荐 fp16
+
+### 日志与保存
+logging_steps: 10
+save_steps: 100
+save_total_limit: 3          # 最多保留 3 个 checkpoint
+output_dir: ./output/lora_log_analyst   # 相对于项目根目录
+
+### 评估配置（可选）
+# val_size: 0.1              # 10% 数据用于验证；需要评估时取消注释
+# evaluation_strategy: steps
+# eval_steps: 100
+# load_best_model_at_end: true
+
+### 其他
+report_to: none              # wandb / tensorboard / none
+plot_loss: true              # 训练结束后自动绘制 Loss 曲线

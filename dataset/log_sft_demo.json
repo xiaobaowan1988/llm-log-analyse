@@ -1,0 +1,57 @@
+[
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-15 03:22:18 ERROR [payment-service] java.lang.OutOfMemoryError: Java heap space\n    at java.util.Arrays.copyOf(Arrays.java:3210)\n    at com.example.PaymentProcessor.processBatch(PaymentProcessor.java:158)\n堆内存使用率: 98.7% | GC 耗时: 45s | 活跃线程数: 312",
+    "output": "## 根因判断\n支付服务发生 JVM 堆内存溢出（OOM）。`PaymentProcessor.processBatch` 方法在批量处理时，对大批次数据执行 `Arrays.copyOf` 产生了大量短时对象，超出了堆内存上限。GC 耗时 45s 表明 Full GC 频繁触发但无法回收足够内存，最终导致 OOM。\n\n## 紧急处理步骤\n1. **立即重启** payment-service 实例以恢复服务可用性；\n2. **临时扩大堆内存**：将 JVM 参数 `-Xmx` 从当前值提升 50%（如 `-Xmx4g`）；\n3. **限流**：临时降低批处理并发度，减少单批次数据量。\n\n## 长期优化建议\n1. **分批流式处理**：将大批次拆分为小批次（每批 ≤500 条），使用流式 API 代替一次性 `copyOf`；\n2. **对象池复用**：对频繁创建的对象引入对象池，降低 GC 压力；\n3. **配置告警**：堆内存使用率超过 80% 时触发告警，提前介入；\n4. **压测验证**：修复后执行压测，确认峰值流量下内存保持稳定。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-15 14:05:33 ERROR [api-gateway] Connect timeout: upstream order-service (10.0.1.23:8080) after 5000ms\n失败率: 100% | 持续时长: 8min | 影响接口: /api/v1/orders",
+    "output": "## 根因判断\nAPI 网关无法连接到 order-service 实例（10.0.1.23:8080），且超时持续 8 分钟、失败率 100%，说明该实例已完全不可用。常见原因：进程崩溃/OOM、服务器宕机、网络分区，或端口被占用。\n\n## 紧急处理步骤\n1. **SSH 登录** 10.0.1.23，检查进程状态：`ps aux | grep order-service`；\n2. **查看最近日志**：`journalctl -u order-service --since '10 minutes ago'`；\n3. **若进程已死**，立即重启：`systemctl restart order-service`；\n4. **网关摘除**：在负载均衡器上将 10.0.1.23:8080 临时下线，流量切至健康节点。\n\n## 长期优化建议\n1. **健康检查**：配置网关对上游节点做主动健康探测（每 10s 一次），自动摘除不健康节点；\n2. **熔断降级**：在网关层配置熔断器（如 Sentinel/Resilience4j），快速失败而非等待超时；\n3. **多实例部署**：order-service 至少部署 2 个实例，避免单点故障；\n4. **进程守护**：使用 systemd / Supervisor 配置服务自动重启策略。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-15 22:48:01 WARN [db-pool] Connection pool exhausted. Waiting for available connection...\npool.size=20, active=20, idle=0, waiting=47\n慢查询数/分钟: 156 | 最长等待: 12.3s",
+    "output": "## 根因判断\n数据库连接池已耗尽（20/20 全部占用，47 个请求排队等待）。结合慢查询 156 次/分钟、最长等待 12.3s，判断是慢 SQL 长时间占用连接不释放，导致连接池快速耗尽形成雪崩。\n\n## 紧急处理步骤\n1. **Kill 慢查询**：登录数据库执行 `SHOW PROCESSLIST`，找到执行时间超长的查询，`KILL QUERY <id>`；\n2. **临时扩大连接池**：将 `pool.size` 从 20 临时调至 50（需确认数据库 `max_connections` 有余量）；\n3. **重启应用**：若连接泄漏严重，重启应用实例以强制释放所有连接。\n\n## 长期优化建议\n1. **SQL 优化**：针对慢查询开启 `slow_query_log`，分析 `EXPLAIN` 执行计划，添加缺失索引；\n2. **连接泄漏检测**：配置连接池的 `testWhileIdle` 和 `removeAbandoned` 参数，自动回收泄漏连接；\n3. **读写分离**：将读请求路由到从库，降低主库连接压力；\n4. **连接池监控**：暴露连接池指标到 Prometheus，设置 `active > pool_size * 0.8` 时告警。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-16 08:30:45 ERROR [user-service] javax.net.ssl.SSLHandshakeException: PKIX path building failed\n    at sun.security.validator.PKIXValidator.engineValidate(PKIXValidator.java:262)\n目标服务: auth-center:443 | 证书有效期至: 2024-01-15 23:59:59",
+    "output": "## 根因判断\nSSL 握手失败，原因是访问 auth-center 时证书验证不通过。结合日志中「证书有效期至 2024-01-15」，确认是 **TLS 证书已过期**，导致 PKIX 路径构建失败（浏览器/JVM 拒绝接受过期证书）。\n\n## 紧急处理步骤\n1. **立即续签证书**：联系证书颁发机构（CA）或使用 Let's Encrypt 重新签发证书；\n2. **热更新证书**：将新证书部署到 auth-center，重载 Nginx/Tomcat，无需重启业务：`nginx -s reload`；\n3. **验证生效**：`openssl s_client -connect auth-center:443 | grep 'notAfter'` 确认新证书日期。\n\n## 长期优化建议\n1. **证书到期监控**：配置定时任务检查证书有效期，提前 30 天发送告警通知；\n2. **自动续签**：使用 Certbot + cron 实现 Let's Encrypt 证书自动续签；\n3. **证书统一管理**：引入 cert-manager（K8s 环境）或 Vault PKI 统一管理所有服务的 TLS 证书；\n4. **灰度发布**：变更前在测试环境验证，避免证书更新影响生产服务。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-16 11:15:22 ERROR [inventory-service] org.springframework.dao.DeadlockLoserDataAccessException: Deadlock found when trying to get lock; try restarting transaction\n涉及表: inventory, order_items | 死锁频率: 23次/小时 | 高峰并发: 850 TPS",
+    "output": "## 根因判断\nMySQL 检测到死锁，发生在 `inventory` 和 `order_items` 两张表之间。在 850 TPS 高并发场景下，两个事务以相反顺序锁定这两张表，形成循环等待死锁。频率 23 次/小时属于明显异常，说明存在固定的锁序冲突代码路径。\n\n## 紧急处理步骤\n1. **开启死锁日志**：执行 `SET GLOBAL innodb_print_all_deadlocks=ON`，捕获完整死锁信息；\n2. **分析死锁图**：查看 `SHOW ENGINE INNODB STATUS` 中的 `LATEST DETECTED DEADLOCK` 段，找出两个事务的加锁顺序；\n3. **统一加锁顺序**：临时修改代码，确保所有事务按 `inventory → order_items` 同一顺序加锁。\n\n## 长期优化建议\n1. **统一加锁顺序**：规范化代码，所有业务逻辑访问多表时严格按字母序或业务定义的固定顺序加锁；\n2. **缩小事务范围**：将大事务拆分为小事务，减少锁持有时长；\n3. **乐观锁替换**：对 `inventory` 库存扣减改用乐观锁（版本号/CAS），减少锁冲突；\n4. **限流削峰**：在入口处对高并发写请求做队列化处理，控制并发度在数据库承受范围内。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-16 16:40:09 CRITICAL [cache-service] Redis CLUSTERDOWN: The cluster is down\n节点状态: node-1(FAIL), node-2(OK), node-3(FAIL)\n集群规模: 6节点(3主3从) | 宕机时长: 3min",
+    "output": "## 根因判断\nRedis Cluster 因 node-1 和 node-3（两个主节点）同时宕机进入 CLUSTERDOWN 状态。Redis Cluster 要求多数主节点（≥ N/2+1）存活才能对外服务，3 主节点中 2 个失效，集群失去仲裁能力，停止响应读写请求。两主同时宕机可能是机架掉电、网络分区或同批硬件故障。\n\n## 紧急处理步骤\n1. **检查物理/网络**：确认 node-1、node-3 所在机器网络连通性和进程状态；\n2. **尝试重启**：若进程崩溃，重启 Redis：`systemctl restart redis-server`；\n3. **手动故障转移**：若主节点无法恢复，对其从节点执行 `CLUSTER FAILOVER FORCE` 提升为新主；\n4. **集群修复验证**：执行 `redis-cli --cluster check <host>:<port>` 确认集群状态恢复 OK。\n\n## 长期优化建议\n1. **跨机架部署**：主从节点分布在不同物理机架/可用区，避免机架级故障导致多主同时宕机；\n2. **自动故障转移监控**：集成 Redis Sentinel 或 Kubernetes Operator 实现故障自动发现和转移；\n3. **持久化配置**：开启 AOF + RDB 双持久化，减少数据丢失风险；\n4. **容量规划**：定期压测集群，评估是否需要扩容节点以提升容错能力。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-17 09:12:55 ERROR [file-service] java.io.IOException: No space left on device\n    at java.io.FileOutputStream.write(FileOutputStream.java:326)\n磁盘使用率: /data 99.8% (498GB/500GB) | 增速: 15GB/天 | 最大文件目录: /data/logs (320GB)",
+    "output": "## 根因判断\n`/data` 分区磁盘空间耗尽（99.8%），文件写入失败。`/data/logs` 目录占用 320GB，是主要消耗来源，推测是日志文件长期未清理或日志级别过高导致的磁盘空间爆满。以 15GB/天 的增速，满负荷状态无法持续写入。\n\n## 紧急处理步骤\n1. **立即清理日志**：`find /data/logs -name '*.log' -mtime +7 -delete`（删除 7 天前日志）；\n2. **压缩归档**：对 1-7 天日志执行 `gzip` 压缩，可节省 60-80% 空间；\n3. **验证空间**：`df -h /data` 确认可用空间恢复正常，服务自动恢复写入。\n\n## 长期优化建议\n1. **日志轮转**：配置 logrotate，按天轮转，保留 7 天，超期自动压缩删除；\n2. **磁盘告警**：使用率超 80% 时告警，超 90% 触发自动清理脚本；\n3. **日志分级存储**：将历史日志归档到对象存储（OSS/S3），降低本地磁盘压力；\n4. **扩容规划**：评估业务增长，提前扩容磁盘或迁移至分布式存储（如 Ceph）。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-17 20:05:11 ERROR [message-queue] RabbitMQ channel closed: reply-code=406, reply-text=PRECONDITION_FAILED - inequivalent arg 'durable' for queue 'order.events'\n消费者数: 0 | 队列积压: 128,450条 | 业务影响: 订单事件全部丢失消费",
+    "output": "## 根因判断\nRabbitMQ 队列属性冲突：生产者尝试声明 `order.events` 队列时使用了与已存在队列不同的 `durable` 参数（已有队列 durable=true，新声明 durable=false 或反之），导致 406 PRECONDITION_FAILED 错误，Channel 被关闭，消费者全部断开，队列积压达 128K 条消息。\n\n## 紧急处理步骤\n1. **确认队列属性**：登录 RabbitMQ Management UI（:15672），查看 `order.events` 的 `durable` 属性；\n2. **统一代码配置**：修改生产者/消费者代码，确保声明参数与已有队列完全一致；\n3. **重启消费者**：代码修复后重启消费者服务，开始消费积压消息；\n4. **监控消费速度**：关注积压消息消化速度，防止消费者处理能力不足造成二次积压。\n\n## 长期优化建议\n1. **基础设施即代码**：用 Terraform 或 RabbitMQ 配置文件统一管理队列定义，避免代码散落各处不一致；\n2. **队列声明只读**：生产环境禁止应用代码自动创建/修改队列，由运维统一管理队列拓扑；\n3. **死信队列**：为重要业务队列配置 DLX（死信交换机），消费失败的消息进入死信队列而非丢失；\n4. **积压监控告警**：队列深度超过阈值（如 10000 条）时触发告警，提前干预。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-18 01:33:27 WARN [security] Multiple failed login attempts detected\nIP: 192.168.1.105 | 失败次数: 847次/分钟 | 尝试用户名: admin, root, administrator\n来源地区: 境外 | 触发时间: 连续35分钟",
+    "output": "## 根因判断\n检测到暴力破解（Brute Force）攻击行为：境外 IP 192.168.1.105 以 847 次/分钟的频率持续 35 分钟尝试常见管理员账号（admin/root/administrator），是典型的字典攻击模式，目标是获取系统管理权限。\n\n## 紧急处理步骤\n1. **立即封禁 IP**：`iptables -A INPUT -s 192.168.1.105 -j DROP`（或在云安全组封禁该 IP）；\n2. **检查是否已入侵**：查看 `/var/log/auth.log` 确认是否有成功登录记录；\n3. **强制重置密码**：对 admin/root 等账号立即修改为强密码（16位以上，含特殊字符）；\n4. **通知安全团队**：升级为安全事件，启动应急响应流程。\n\n## 长期优化建议\n1. **禁用密码登录**：SSH 改为仅允许密钥认证（`PasswordAuthentication no`）；\n2. **登录限速**：配置 fail2ban，5 次失败后封禁 IP 1 小时；\n3. **端口隐藏**：将 SSH 端口从 22 改为非标准端口（如 22022），减少扫描攻击；\n4. **多因素认证（MFA）**：管理后台启用 TOTP/MFA，即使密码泄露也无法直接登录；\n5. **IP 白名单**：管理端口仅对可信 IP 段开放，拒绝全网访问。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-18 14:22:40 ERROR [k8s-scheduler] 0/8 nodes are available: 3 Insufficient cpu, 5 node(s) had taint that the Pod didn't tolerate.\nPod: analytics-worker-7d8f9c | 请求资源: cpu=4, memory=8Gi | 等待时长: 18min",
+    "output": "## 根因判断\nKubernetes 调度器无法为 Pod `analytics-worker-7d8f9c` 找到合适节点：3 个节点 CPU 资源不足（已超配），5 个节点有 Pod 无法容忍的污点（Taint）。Pod 请求 4 核 CPU + 8GB 内存，但集群可调度资源已耗尽，导致 Pod 持续 Pending 18 分钟。\n\n## 紧急处理步骤\n1. **查看节点资源**：`kubectl describe nodes | grep -A5 'Allocated resources'`，确认各节点剩余可调度资源；\n2. **检查污点**：`kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints`，确认是否有节点因维护设置了污点；\n3. **临时扩容**：若云环境，触发节点自动扩容（Cluster Autoscaler）；或手动增加工作节点；\n4. **清除维护污点**：确认维护完成的节点执行 `kubectl taint nodes <node> <taint>-` 解除污点。\n\n## 长期优化建议\n1. **Cluster Autoscaler**：配置节点自动扩缩容，Pod Pending 超过阈值时自动添加节点；\n2. **资源配额**：为 Namespace 设置 ResourceQuota，防止单个服务过度申请资源影响全集群；\n3. **优先级抢占**：为关键 Pod 配置 PriorityClass，确保高优先级服务在资源紧张时优先调度；\n4. **资源超配监控**：定期审查各节点资源 Request/Limit 比值，避免过度超配导致调度失败。"
+  },
+  {
+    "instruction": "你是一名资深运维专家，请分析以下系统日志，给出：1) 根因判断，2) 紧急处理步骤，3) 长期优化建议。",
+    "input": "2024-01-18 23:58:12 ERROR [data-pipeline] Pipeline stage 'ETL-transform' failed after 3 retries\nError: NullPointerException at DataTransformer.normalizeField(DataTransformer.java:203)\n处理批次: batch_20240118_235500 | 数据量: 2.3M条 | 已处理: 1.87M条 (81%)",
+    "output": "## 根因判断\nETL 数据管道在处理 batch_20240118_235500 时，`DataTransformer.normalizeField` 方法第 203 行发生 NullPointerException（NPE），导致管道在 81% 处中断。经 3 次重试仍失败，说明该批次中存在导致 NPE 的固定脏数据（空值或格式异常字段），而非瞬时错误。\n\n## 紧急处理步骤\n1. **隔离问题数据**：定位第 1.87M 条附近的数据，筛选出 `normalizeField` 处理的字段中含 null 的记录；\n2. **跳过或修复**：对脏数据执行数据修复或标记跳过，重新提交剩余 43 万条；\n3. **监控完成状态**：确认修复后管道可跑通，验证下游数据准确性。\n\n## 长期优化建议\n1. **输入校验**：在 `normalizeField` 入口添加 null 检查，对空值给出默认值或记录到异常队列而非抛出 NPE；\n2. **数据质量检测**：在 ETL 入口增加 Schema 校验层，提前过滤不符合规范的数据；\n3. **断点续传**：记录每批次处理进度（Checkpoint），失败后从断点重跑而非全量重处理；\n4. **异常数据隔离队列**：无法处理的脏数据写入 DLQ（Dead Letter Queue），人工审核后决定修复或丢弃，不阻塞主流程。"
+  }
+]
