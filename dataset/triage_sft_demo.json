@@ -1,0 +1,82 @@
+[
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-15 03:22:18 ERROR [payment-service] runtime error: nil pointer dereference\ngoroutine 47 [running]:\ngithub.com/myco/payment/pkg/processor.(*PaymentHandler).Process(handler.go:87)\ngithub.com/myco/payment/cmd/server.main.func1(main.go:43)\n[聚合信息] 该错误在过去 30s 内出现 156 次（312次/分钟）",
+    "output": "{\"severity\": \"P0_CRITICAL\", \"reason\": \"支付服务核心 goroutine 发生 nil pointer panic，出现频率 312次/分钟，服务已大规模崩溃。\", \"action\": \"立即重启 payment-service Pod；检查 handler.go:87 的指针初始化逻辑。\", \"blast_radius\": \"full\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-15 08:45:02 ERROR [k8s-controller] Node ip-10-0-1-45.ec2.internal condition changed: Ready -> NotReady\nNode ip-10-0-2-87.ec2.internal condition changed: Ready -> NotReady\nNode ip-10-0-3-12.ec2.internal condition changed: Ready -> NotReady\n3 nodes became NotReady in the last 60s",
+    "output": "{\"severity\": \"P0_CRITICAL\", \"reason\": \"60 秒内 3 个 K8s 节点同时变为 NotReady，可能是机架掉电或网络分区，大量 Pod 将被驱逐，核心服务面临中断风险。\", \"action\": \"立即检查节点所在机架的网络和电源；执行 kubectl describe node 确认原因；触发应急扩容。\", \"blast_radius\": \"full\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-16 14:30:22 ERROR [api-gateway] SSL_ERROR_RX_RECORD_TOO_LONG connecting to auth-service:443\nCertificate: CN=auth.internal.myco.com, expired=2024-01-15T23:59:59Z\n[聚合信息] 该错误在过去 300s 内出现 28,450 次（5,690次/分钟）",
+    "output": "{\"severity\": \"P0_CRITICAL\", \"reason\": \"auth-service TLS 证书昨日到期，所有 HTTPS 连接失败，且频率高达 5,690次/分钟，全部经过网关的鉴权请求均无法完成。\", \"action\": \"立即续签并部署新证书；nginx -s reload 热更新；验证 openssl s_client 连接正常。\", \"blast_radius\": \"full\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-16 22:01:45 ERROR [order-service] upstream inventory-service (10.0.5.22:8080) failed after 3 retries: connect timeout 5000ms\nError rate: 98.3% | Affected endpoints: /api/v2/orders/create, /api/v2/cart/checkout\n[聚合信息] 该错误在过去 480s 内出现 12,847 次（1,606次/分钟）",
+    "output": "{\"severity\": \"P0_CRITICAL\", \"reason\": \"inventory-service 节点 10.0.5.22 完全不可达，导致下单和结账接口失败率达 98.3%，核心交易链路中断。\", \"action\": \"立即检查 10.0.5.22 进程状态并重启；在负载均衡器摘除该节点；检查其他 inventory 节点是否健康。\", \"blast_radius\": \"full\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-17 09:15:33 ERROR [search-service] Elasticsearch cluster health: RED\nUnassigned shards: 47 | Active shards: 23/70 (32.8%)\nNode left cluster: es-node-03, es-node-07\n[聚合信息] 该错误在过去 120s 内出现 89 次（44次/分钟）",
+    "output": "{\"severity\": \"P0_CRITICAL\", \"reason\": \"ES 集群健康状态变红，2 个节点离开集群，仅 32.8% 分片可用，搜索功能完全不可用或严重降级。\", \"action\": \"检查 es-node-03 和 es-node-07 的进程和磁盘状态；执行 GET _cluster/allocation/explain 分析分片分配失败原因。\", \"blast_radius\": \"full\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-17 16:20:04 ERROR [payment-service] PaymentGatewayException: Stripe API returned 503 Service Unavailable\nPayment declined for order_id=ORD-9821234, amount=¥1,280.00\n[聚合信息] 该错误在过去 600s 内出现 342 次（34次/分钟）",
+    "output": "{\"severity\": \"P1_HIGH\", \"reason\": \"第三方支付网关（Stripe）返回 503，支付功能受损，34次/分钟的失败率表明持续且大规模影响，但属于外部依赖故障。\", \"action\": \"检查 Stripe Status Page 确认是否全球故障；考虑切换备用支付渠道；向受影响用户主动通知并保留重试记录。\", \"blast_radius\": \"partial\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-17 20:45:19 ERROR [user-service] CircuitBreakerOpenException: Circuit breaker 'notification-service' is OPEN\nFallback applied: skip_notification\nLast error rate: 87% over 60s | Recovery attempt in 30s",
+    "output": "{\"severity\": \"P1_HIGH\", \"reason\": \"通知服务熔断器开启，错误率 87%，通知功能已降级，但 fallback 机制生效（skip_notification），核心业务未中断。\", \"action\": \"检查 notification-service 服务状态；30s 后观察熔断器是否进入 half-open 并自动恢复；分析 87% 错误的根因。\", \"blast_radius\": \"partial\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-18 10:30:15 ERROR [data-pipeline] Kafka consumer lag exceeded threshold\nTopic: user-events | Consumer group: analytics-consumer | Lag: 2,847,293 messages\nConsumption rate: 1,200 msg/s | Production rate: 8,500 msg/s",
+    "output": "{\"severity\": \"P1_HIGH\", \"reason\": \"Kafka 消费延迟达 284 万条，消费速率仅为生产速率的 14%，积压持续增长，可能导致实时分析数据严重滞后或内存溢出。\", \"action\": \"检查 analytics-consumer 是否有慢处理；考虑扩容 consumer 实例；临时降低生产速率限流；检查是否有死消息阻塞。\", \"blast_radius\": \"partial\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-18 14:22:40 ERROR [report-service] PDF generation failed for report_id=RPT-20240118-8821\njava.lang.OutOfMemoryError: Java heap space\n    at org.xhtmlrenderer.render.Box.paint(Box.java:247)\nHeap: 3.8GB/4GB used | Report size: 45,000 rows",
+    "output": "{\"severity\": \"P2_WARNING\", \"reason\": \"报表服务在生成大型 PDF（45,000 行）时 OOM，属于单任务资源超限，不影响其他报表生成或核心业务。\", \"action\": \"对该报表任务增加 JVM 堆内存（-Xmx6g）；将大报表改为分页流式生成；临时告知用户推迟生成。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-18 03:10:08 ERROR [backup-service] Failed to upload database backup to S3\nAWS Error: AccessDenied - User: arn:aws:iam::123456789:role/backup-role is not authorized to perform: s3:PutObject on resource: arn:aws:s3:::prod-db-backup\nBackup file: mysql-full-20240118-030001.sql.gz (size: 28.4GB)",
+    "output": "{\"severity\": \"P2_WARNING\", \"reason\": \"数据库备份因 IAM 权限变更上传失败，属于后台运维任务，不影响生产业务，但备份缺失会增加数据丢失风险。\", \"action\": \"工作时间内修复 backup-role 的 S3 PutObject 权限；手动触发一次备份确认修复；检查权限变更日志。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-15 11:23:45 ERROR [user-service] UserNotFoundException: User with id=deleted_user_92817 not found in database\n    at com.example.user.UserRepository.findById(UserRepository.java:45)\n    at com.example.user.UserController.getProfile(UserController.java:78)",
+    "output": "{\"severity\": \"P3_IGNORE\", \"reason\": \"查询已删除用户的 Profile，系统正常返回 UserNotFoundException，属于客户端持有过期 ID 的正常场景。\", \"action\": \"无需处理；如频率持续升高，检查客户端缓存清理逻辑。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-16 09:12:33 ERROR [file-service] S3 GetObject connection reset by peer (attempt 1/3): s3://prod-assets/images/product_9821.jpg\n2024-01-16 09:12:35 INFO  [file-service] S3 GetObject succeeded on attempt 2/3 (latency: 2341ms): s3://prod-assets/images/product_9821.jpg",
+    "output": "{\"severity\": \"P3_IGNORE\", \"reason\": \"S3 连接偶发重置，后续重试成功，对用户无影响，属于云存储的正常瞬时抖动。\", \"action\": \"无需处理；若 attempt 1/3 失败频率 >5%，则调查 S3 端点网络稳定性。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-17 13:45:22 ERROR [api-gateway] 400 Bad Request: invalid parameter 'date_range' - value '2024-13-45' is not a valid date\nClient-IP: 203.0.113.42 | User-Agent: python-requests/2.31.0\n[聚合信息] 该错误在过去 3600s 内出现 3 次（0次/分钟）",
+    "output": "{\"severity\": \"P3_IGNORE\", \"reason\": \"客户端传入非法日期格式，API 正常返回 400 校验错误，系统行为完全正确，仅 3次/小时出现。\", \"action\": \"无需处理；可考虑在 API 文档中增加参数格式说明。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-17 08:30:01 ERROR [auth-service] ExpiredJwtException: JWT expired at 2024-01-17T08:25:33Z, current time: 2024-01-17T08:30:01Z\n    at io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:388)\nUser-Agent: Mozilla/5.0 Chrome/121.0\n[聚合信息] 该错误在过去 3600s 内出现 1,247 次（20次/分钟）",
+    "output": "{\"severity\": \"P3_IGNORE\", \"reason\": \"JWT Token 自然过期，用户需重新登录，属于正常鉴权生命周期行为，20次/分钟是正常活跃用户量的体现。\", \"action\": \"无需处理；若希望减少重登频率，考虑配置 refresh token 机制。\", \"blast_radius\": \"single\", \"confidence\": \"high\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-18 16:55:10 ERROR [recommendation-service] ModelInferenceTimeoutException: Inference timeout after 3000ms for user_id=U-882134\nModel: product-rec-v2.3 | Feature count: 2,847 | GPU utilization: 94%\n[聚合信息] 该错误在过去 300s 内出现 234 次（46次/分钟）",
+    "output": "{\"severity\": \"P2_WARNING\", \"reason\": \"推荐模型推理超时，GPU 利用率 94% 接近瓶颈，46次/分钟的超时频率表明性能降级，但推荐功能属非核心，不影响下单交易。\", \"action\": \"检查 GPU 资源瓶颈；临时降低特征数量或启用缓存；规划扩容 GPU 节点。\", \"blast_radius\": \"partial\", \"confidence\": \"medium\"}"
+  },
+  {
+    "instruction": "你是资深 SRE 专家，请分析以下系统 ERROR 日志的严重程度，必须输出合法 JSON。\n严重程度：P0_CRITICAL（立即唤醒）/ P1_HIGH（1小时内）/ P2_WARNING（工作时间）/ P3_IGNORE（无需处理）\n判断维度：错误类型 + 发生位置 + 爆炸半径",
+    "input": "2024-01-19 02:15:44 ERROR [security-monitor] Multiple failed SSH login attempts detected\nSource IP: 45.33.32.156 (shodan.io) | Target: bastion-host-01 | Attempts: 2,847 in 300s\nUsernames tried: root, admin, ubuntu, ec2-user, deploy",
+    "output": "{\"severity\": \"P1_HIGH\", \"reason\": \"检测到来自已知扫描 IP 的 SSH 暴力破解攻击，2847次/300s 的高频尝试存在入侵风险，需及时响应。\", \"action\": \"立即在安全组封禁 45.33.32.156；确认 SSH 是否已关闭密码登录（仅允许密钥认证）；检查是否有成功登录记录。\", \"blast_radius\": \"partial\", \"confidence\": \"high\"}"
+  }
+]
