@@ -1,0 +1,30 @@
+# RAG 根因分析流水线依赖
+# 安装命令：pip install -r requirements_rag.txt
+#
+# 说明：
+#   本 RAG 流水线的核心模块（log_parser / code_retriever / prompt_builder / pipeline）
+#   仅依赖 Python 标准库，零外部依赖，开箱即用。
+#
+#   以下依赖均为「可选增强」，根据实际需求安装：
+
+# ── 可选：Ollama Python SDK（更稳定的流式输出，也可直接用内置 HTTP）
+# ollama>=0.2.0
+
+# ── 可选：OpenAI SDK（如使用 OpenAI / vLLM / DeepSeek / 千问 API）
+# openai>=1.0.0
+
+# ── 可选：向量检索增强（将历史排障记录向量化，相似日志自动召回）
+# chromadb>=0.4.0          # 轻量本地向量数据库
+# sentence-transformers>=2.2.0   # 文本向量化模型
+
+# ── 可选：结构化报告解析（将 Markdown 报告解析为 JSON）
+# markdown>=3.5.0
+# pydantic>=2.0.0
+
+# ── 可选：Web 服务化（将 Pipeline 包装为 REST API）
+# fastapi>=0.110.0
+# uvicorn>=0.27.0
+
+# ── 可选：日志监控集成（从 Elasticsearch / Loki 实时拉取日志）
+# elasticsearch>=8.0.0
+# httpx>=0.26.0
